@@ -39,16 +39,23 @@ angular.module('starter', ['ionic', 'ngCordova'])
   function downloadData(key) {
     return $http({
       method: 'GET',
-      url: getServerURL() + '/storages/',
-      params: { key: key }
+      url: getServerURL() + '/storages/' + key + '/',
+      params: {
+        auth_user_token: 'gAAAAABXObzjJ2VYfgLeZZr_uAyLpsht7GAFvHLs3dTM5zS2jR7TvaSJB5MierVs7O1ETeWsV2871MHKFAoT_WEnqMmMcsd4GfMTNWG5FsFWFwf8ngdzcNy_vLirUdAtq5S4Je7F5Hvx',
+        auth_vd_token: 'gAAAAABXPmPV9aLRV9Ao98UatlmZ80wubuKdb0pQAEj_UkK3dDKWOp4ZzpUdztG2_Ya45KMPm0jVIaksW9-aHh8GUqLB73P60A=='
+      }
     });
   }
 
   function uploadData(key, data) {
     return $http({
-      method: 'POST',
-      url: getServerURL() + '/storages/',
-      data: JSON.stringify({ key: key, data: JSON.stringify(data) })
+      method: 'PATCH',
+      url: getServerURL() + '/storages/' + key + '/',
+      data: { value: JSON.stringify(data) },
+      params: {
+        auth_user_token: 'gAAAAABXObzjJ2VYfgLeZZr_uAyLpsht7GAFvHLs3dTM5zS2jR7TvaSJB5MierVs7O1ETeWsV2871MHKFAoT_WEnqMmMcsd4GfMTNWG5FsFWFwf8ngdzcNy_vLirUdAtq5S4Je7F5Hvx',
+        auth_vd_token: 'gAAAAABXPmPV9aLRV9Ao98UatlmZ80wubuKdb0pQAEj_UkK3dDKWOp4ZzpUdztG2_Ya45KMPm0jVIaksW9-aHh8GUqLB73P60A=='
+      }
     });
   }
 
@@ -95,9 +102,33 @@ angular.module('starter', ['ionic', 'ngCordova'])
     return deferred.promise;
   }
 
+  function deletePhoto(index) {
+    var deferred = $q.defer();
+
+    $cordovaFile.removeFile(cordova.file.documentsDirectory, index + '')
+    .then(function(result) {
+      // console.dir(result);
+      // $cordovaFile.checkFile(cordova.file.documentsDirectory, index + '')
+      // .then(function(success) {
+      //   console.log(index + 'file is exist');
+      // }, function(err) {
+      //   console.dir(err);
+      // })
+      // .finally(function() {
+        deferred.resolve();
+      // });
+    }, function(err) {
+      console.error(err);
+      deferred.reject(err);
+    });
+
+    return deferred.promise;
+  }
+
   return {
     getPhotoList: getPhotoList,
-    getPhoto: getPhoto
+    getPhoto: getPhoto,
+    deletePhoto: deletePhoto
   };
 }])
 .factory('imageImporter', ['$q', '$ionicPlatform', '$http', '$cordovaFileTransfer', 'RESTServer', 'photoEngineService', 'remoteStorageService', function($q,  $ionicPlatform, $http, $cordovaFileTransfer, RESTServer, photoEngineService, remoteStorageService) {
@@ -114,17 +145,17 @@ angular.module('starter', ['ionic', 'ngCordova'])
   };
   var timer = null;
 
-  function init() {
+  function loadHistory() {
     var deferred = $q.defer();
-    // remoteStorageService.downloadData('uploadedImages')
-    // .then(function(result) {
-    //   uploadedImages = result.data;
-    //   // console.log(beforeImages);
-    //   status.name = 'init';
-    //   deferred.resolve(uploadedImages);
-    // }, function(err) {
-    //   deferred.reject(err);
-    // });
+    remoteStorageService.downloadData('uploaded_imgs')
+    .then(function(result) {
+      uploadedImages = JSON.parse(result.data.value) || [];
+      console.dir(uploadedImages);
+      status.name = 'init';
+      deferred.resolve();
+    }, function(err) {
+      deferred.reject(err);
+    });
     return deferred.promise;
   }
 
@@ -138,7 +169,7 @@ angular.module('starter', ['ionic', 'ngCordova'])
   }
 
   function uploadImage() {
-    console.log('uploadImage..');
+    console.log('uploadImage..(status:' + status.name + ')');
     if (status.name !== 'ready') {
       return;
     } else {
@@ -147,12 +178,15 @@ angular.module('starter', ['ionic', 'ngCordova'])
 
     while(findImage(beforeImages[status.current].url)) {
       status.current++;
+      if (status.current === beforeImages.length) {
+        stop();
+        return;
+      }
     }
 
     photoEngineService.getPhoto(beforeImages[status.current].id)
     .then(function(fileURI) {
       // console.log('image path : ' + fileURI);
-      //  1. rfs upload file..
       var options = {
         fileKey: 'file',
         httpMethod: 'POST',
@@ -164,9 +198,9 @@ angular.module('starter', ['ionic', 'ngCordova'])
       $cordovaFileTransfer.upload(getServerURL() + '/rfs/', fileURI, options)
       .then(function(result) {
         var response = JSON.parse(result.response);
-        console.dir(response);
-        console.log('lon : ' + beforeImages[status.current].longitude);
-        console.log('lat : ' + beforeImages[status.current].latitude);
+        // console.dir(response);
+        // console.log('lon : ' + beforeImages[status.current].longitude);
+        // console.log('lat : ' + beforeImages[status.current].latitude);
         $http({
           method: 'POST',
           url: getServerURL() + '/imgs/',
@@ -182,12 +216,14 @@ angular.module('starter', ['ionic', 'ngCordova'])
           }
         })
         .then(function(result) {
-          console.dir(result);
-          completedImages.push(beforeImages[status.current].url);
+          // console.dir(result);
+          photoEngineService.deletePhoto(beforeImages[status.current].id);
+          uploadedImages.push(beforeImages[status.current].url);
+          remoteStorageService.uploadData('uploaded_imgs', uploadedImages);
           status.current++;
         }, function(err) {
-          console.error('In posting to imgs :' + err);
-          console.dir(err);
+          console.error('In posting to imgs :' + JSON.stringify(err));
+          // console.dir(err);
         })
         .finally(function() {
           status.name = 'ready';
@@ -206,16 +242,19 @@ angular.module('starter', ['ionic', 'ngCordova'])
   }
 
   function start() {
-    console.log('imageImporter start');
-    photoEngineService.getPhotoList()
-    .then(function(list) {
-      beforeImages = list;
-      status.total = beforeImages.length;
-      console.dir(beforeImages);
-      status.name = 'ready';
-      timer = setInterval(uploadImage, 1000);
-    }, function(err) {
-      console.error(err);
+    loadHistory()
+    .then(function() {
+      console.log('imageImporter start');
+      photoEngineService.getPhotoList()
+      .then(function(list) {
+        beforeImages = list;
+        status.total = beforeImages.length;
+        // console.dir(beforeImages);
+        status.name = 'ready';
+        timer = setInterval(uploadImage, 1000);
+      }, function(err) {
+        console.error(err);
+      });
     });
   }
 
@@ -249,6 +288,9 @@ angular.module('starter', ['ionic', 'ngCordova'])
       clearInterval(timer);
       timer = null;
       status.name = 'stopped';
+      status.total = 0;
+      status.current = 0;
+      uploadedImages = [];
     }
   }
 
@@ -259,7 +301,6 @@ angular.module('starter', ['ionic', 'ngCordova'])
   return {
     getUploadedImages: function() { return uploadedImages; },
     getImagesToUpload: function() { return beforeImages; },
-    init: init,
     start: start,
     startTest: startTest,
     pause: pause,
@@ -268,10 +309,7 @@ angular.module('starter', ['ionic', 'ngCordova'])
     getStatus: getStatus
   }
 }])
-.controller('importImageCtrl', [function($scope) {
-
-}])
-.controller('mainCtrl', function($scope, $ionicPlatform, $cordovaFile, photoEngineService, imageImporter) {
+.controller('mainCtrl', function($scope, $ionicPlatform, $cordovaFile, photoEngineService, imageImporter, remoteStorageService) {
   console.log('mainCtrl is invoked.');
 
   $scope.init = function() {
@@ -279,13 +317,13 @@ angular.module('starter', ['ionic', 'ngCordova'])
     $scope.photoes = [];
     photoEngineService.getPhotoList()
     .then(function(results){
-      console.dir(results);
+      // console.dir(results);
       for (var i = 0; i < results.length; i++) {
         (function(i){
           photoEngineService.getPhoto(results[i].id)
           .then(function(result) {
             $scope.photoes.push('file://' + result);
-            console.dir($scope.photoSrces);
+            // console.dir($scope.photoSrces);
             // $scope.$apply();
           }, function(err) {
             console.error(err);
@@ -299,8 +337,29 @@ angular.module('starter', ['ionic', 'ngCordova'])
 
   $ionicPlatform.ready(function() {
     // $scope.init();
-    imageImporter.init();
+    // imageImporter.init();
   });
+
+  $scope.load = function() {
+    remoteStorageService.downloadData('test')
+    .then(function(result){
+      console.dir(JSON.parse(result.data.value));
+    });
+  }
+
+  $scope.save = function() {
+    remoteStorageService.uploadData('test', ['a', 'b', 'c', 'd', 'e'])
+    .then(function(result) {
+      console.log('save complete');
+    });
+  }
+
+  $scope.reset = function() {
+    remoteStorageService.uploadData('uploaded_imgs', [])
+    .then(function(result) {
+      console.log('reset complete');
+    });
+  }
 
   $scope.start = function() {
     imageImporter.start();
