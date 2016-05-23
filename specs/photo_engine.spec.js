@@ -124,9 +124,12 @@ describe('imageImporter', function() {
 
   });
 
-  //  1. 읽어야 할 목록을 읽어와서 메모리에 갖고 있는다
+  //  1. 읽어야 할 목록을 읽어와서 메모리에 저장한다
   it ('should get list of images to upload', function() {
-
+    imageImporter.startTest();
+    expect(imageImporter.getImagesToUpload().length).not.toBe(0);
+    expect(imageImporter.getStatus()).toBe('ready');
+    imageImporter.stop();
   });
 
   //  2. 하나씩 읽어야할 파일의 키를 가져온다
@@ -144,13 +147,29 @@ describe('imageImporter', function() {
   //  1. 현재까지 하던 작업을 정지하고, 다음 작업으로 넘어가지 않는다.
   //    1-1. 현재 진행하던 포인트를 저장해 둔다
   //  2. pause 되었음을 알린다 (status : curCount, total, state)
+  it ('should pause the current task', function() {
+    imageImporter.startTest();
+    imageImporter.pause();
+    expect(imageImporter.getStatus()).toBe('paused');
+  });
 
   //  resume
   //  1. 재개함을 알린다.
   //  2. 저장한 시점을 가져와서 업로드 작업을 진행한다
+  it ('should resume the current task', function() {
+    imageImporter.startTest();
+    imageImporter.pause();
+    imageImporter.resume();
+    expect(imageImporter.getStatus()).toBe('ready');
+  });
 
   //  stop
   //  1. 업로드 작업을 정지한다
   //  2. 읽어야 할 목록을 삭제한다.
   //  3. 중지되었음을 상태를 알린다.
+  it ('should stop the current task', function() {
+    imageImporter.startTest();
+    imageImporter.stop();
+    expect(imageImporter.getStatus()).toBe('stopped');
+  });
 });
