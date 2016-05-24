@@ -36,6 +36,9 @@
         <button class="button button-full" ng-click="pause()">pause</button>
         <button class="button button-full" ng-click="resume()">resume</button>
         <button class="button button-full" ng-click="stop()">stop</button>
+        <div>
+          {{status.name}}&nbsp;/&nbsp;{{status.current}}&nbsp;/&nbsp;{{status.total}}
+        </div>
         <ion-list>
           <ion-item class="item-button-right" ng-repeat="photo in photoes track by $index">
             <img src="{{photo}}" style="height:80px;">

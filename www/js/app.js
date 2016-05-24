@@ -144,6 +144,13 @@ angular.module('starter', ['ionic', 'ngCordova'])
     current: 0
   };
   var timer = null;
+  var progress = null;
+
+  function updateProgress() {
+    if (progress) {
+      progress(status);
+    }
+  }
 
   function loadHistory() {
     var deferred = $q.defer();
@@ -221,6 +228,7 @@ angular.module('starter', ['ionic', 'ngCordova'])
           uploadedImages.push(beforeImages[status.current].url);
           remoteStorageService.uploadData('uploaded_imgs', uploadedImages);
           status.current++;
+          updateProgress();
         }, function(err) {
           console.error('In posting to imgs :' + JSON.stringify(err));
           // console.dir(err);
@@ -228,7 +236,7 @@ angular.module('starter', ['ionic', 'ngCordova'])
         .finally(function() {
           status.name = 'ready';
           if (status.current === beforeImages.length) {
-            stop();
+            complete();
           }
         });
       }, function(err) {
@@ -241,7 +249,8 @@ angular.module('starter', ['ionic', 'ngCordova'])
     });
   }
 
-  function start() {
+  function start(prograssCallback) {
+    progress = prograssCallback || null;
     loadHistory()
     .then(function() {
       console.log('imageImporter start');
@@ -251,6 +260,7 @@ angular.module('starter', ['ionic', 'ngCordova'])
         status.total = beforeImages.length;
         // console.dir(beforeImages);
         status.name = 'ready';
+        updateProgress();
         timer = setInterval(uploadImage, 1000);
       }, function(err) {
         console.error(err);
@@ -270,6 +280,7 @@ angular.module('starter', ['ionic', 'ngCordova'])
       clearInterval(timer);
       timer = null;
       status.name = 'paused';
+      updateProgress();
     }
   }
 
@@ -279,6 +290,7 @@ angular.module('starter', ['ionic', 'ngCordova'])
       return;
     }
     status.name = 'ready';
+    updateProgress();
     timer = setInterval(uploadImage, 1000);
   }
 
@@ -288,6 +300,20 @@ angular.module('starter', ['ionic', 'ngCordova'])
       clearInterval(timer);
       timer = null;
       status.name = 'stopped';
+      status.total = 0;
+      status.current = 0;
+      uploadedImages = [];
+      updateProgress();
+    }
+  }
+
+  function complete() {
+    console.log('imageImporter complete');
+    if (timer !== null) {
+      clearInterval(timer);
+      timer = null;
+      updateProgress(); //  !! 이 위치가 중요(stop과의 차이점을 비교하라)
+      status.name = 'completed';
       status.total = 0;
       status.current = 0;
       uploadedImages = [];
@@ -362,7 +388,7 @@ angular.module('starter', ['ionic', 'ngCordova'])
   }
 
   $scope.start = function() {
-    imageImporter.start();
+    imageImporter.start(progress);
   };
 
   $scope.pause = function() {
@@ -375,5 +401,9 @@ angular.module('starter', ['ionic', 'ngCordova'])
 
   $scope.stop = function() {
     imageImporter.stop();
+  };
+
+  function progress(status) {
+    $scope.status = status;
   };
 });
