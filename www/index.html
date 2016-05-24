@@ -39,6 +39,11 @@
         <div>
           {{status.name}}&nbsp;/&nbsp;{{status.current}}&nbsp;/&nbsp;{{status.total}}
         </div>
+        <div class="row">
+          <div class="col">
+            <progress max="100" value="{{ratio}}"></progress>
+          </div>
+        </div>
         <ion-list>
           <ion-item class="item-button-right" ng-repeat="photo in photoes track by $index">
             <img src="{{photo}}" style="height:80px;">

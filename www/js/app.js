@@ -337,6 +337,7 @@ angular.module('starter', ['ionic', 'ngCordova'])
 }])
 .controller('mainCtrl', function($scope, $ionicPlatform, $cordovaFile, photoEngineService, imageImporter, remoteStorageService) {
   console.log('mainCtrl is invoked.');
+  $scope.ratio = 0;
 
   $scope.init = function() {
     console.log('ionic platform is ready.');
@@ -404,6 +405,11 @@ angular.module('starter', ['ionic', 'ngCordova'])
   };
 
   function progress(status) {
+    if (status.name === "complete") {
+      $scope.ratio = 100
+    } else {
+      $scope.ratio = Math.floor(100*status.current/status.total);
+    }
     $scope.status = status;
   };
 });
