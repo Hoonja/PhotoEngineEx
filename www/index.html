@@ -32,10 +32,10 @@
         <button class="button button-full" ng-click="load()">load</button>
         <button class="button button-full" ng-click="save()">save</button>
         <button class="button button-full" ng-click="reset()">reset</button>
-        <button class="button button-full" ng-click="start()">start</button>
-        <button class="button button-full" ng-click="pause()">pause</button>
-        <button class="button button-full" ng-click="resume()">resume</button>
-        <button class="button button-full" ng-click="stop()">stop</button>
+        <button class="button button-full" ng-disabled="started"  ng-click="start()">start</button>
+        <button class="button button-full" ng-disabled="!started||paused" ng-click="pause()">pause</button>
+        <button class="button button-full" ng-disabled="!started||!paused" ng-click="resume()">resume</button>
+        <button class="button button-full" ng-disabled="!started" ng-click="stop()">stop</button>
         <div>
           {{status.name}}&nbsp;/&nbsp;{{status.current}}&nbsp;/&nbsp;{{status.total}}
         </div>
@@ -44,12 +44,6 @@
             <progress max="100" value="{{ratio}}"></progress>
           </div>
         </div>
-        <ion-list>
-          <ion-item class="item-button-right" ng-repeat="photo in photoes track by $index">
-            <img src="{{photo}}" style="height:80px;">
-            <button class="button button-stable">업로드</button>
-          </ion-item>
-        </ion-list>
       </ion-content>
     </ion-pane>
   </body>

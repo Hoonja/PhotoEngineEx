@@ -69,7 +69,9 @@ angular.module('starter', ['ionic', 'ngCordova'])
     var deferred = $q.defer();
 
     PhotoEngine.photoList(function(results) {
+      console.log('photoList returned.');
       var data = JSON.parse(results.data);
+
       if (results.error === '0') {
         deferred.resolve(data);
       } else {
@@ -83,7 +85,7 @@ angular.module('starter', ['ionic', 'ngCordova'])
   function getPhoto(index) {
     var deferred = $q.defer();
 
-    PhotoEngine.base64Encoded(index, function(results) {
+    PhotoEngine.storePhoto(index, function(results) {
       // console.dir(results);
       if (results.error === '0') {
         // $cordovaFile.checkFile(cordova.file.documentsDirectory, index + '')
@@ -256,12 +258,15 @@ angular.module('starter', ['ionic', 'ngCordova'])
       console.log('imageImporter start');
       photoEngineService.getPhotoList()
       .then(function(list) {
+        console.log('In getPhotoList.');
+        console.dir(list);
         beforeImages = list;
         status.total = beforeImages.length;
         // console.dir(beforeImages);
         status.name = 'ready';
         updateProgress();
         timer = setInterval(uploadImage, 1000);
+        console.log('timerID : ' + JSON.stringify(timer));
       }, function(err) {
         console.error(err);
       });
@@ -335,9 +340,29 @@ angular.module('starter', ['ionic', 'ngCordova'])
     getStatus: getStatus
   }
 }])
-.controller('mainCtrl', function($scope, $ionicPlatform, $cordovaFile, photoEngineService, imageImporter, remoteStorageService) {
+.factory('dummyImageImporter', [function() {
+  return {
+    getUploadedImages: function() { },
+    getImagesToUpload: function() { },
+    start: function() { },
+    startTest: function() { },
+    pause: function() { },
+    resume: function() { },
+    stop: function() { },
+    getStatus: function() { },
+  }
+}])
+.controller('mainCtrl', function($scope, $ionicPlatform, $cordovaFile, photoEngineService, imageImporter, remoteStorageService, dummyImageImporter) {
+  var iImporter = null;
+  if (ionic.Platform.isIOS() || ionic.Platform.isAndroid()) {
+    iImporter = imageImporter;
+  } else {
+    iImporter = dummyImageImporter;
+  }
   console.log('mainCtrl is invoked.');
   $scope.ratio = 0;
+  $scope.started = false;
+	$scope.paused = false;
 
   $scope.init = function() {
     console.log('ionic platform is ready.');
@@ -364,7 +389,7 @@ angular.module('starter', ['ionic', 'ngCordova'])
 
   $ionicPlatform.ready(function() {
     // $scope.init();
-    // imageImporter.init();
+    // iImporter.init();
   });
 
   $scope.load = function() {
@@ -389,24 +414,31 @@ angular.module('starter', ['ionic', 'ngCordova'])
   }
 
   $scope.start = function() {
-    imageImporter.start(progress);
+    $scope.started = true;
+    iImporter.start(progress);
   };
 
   $scope.pause = function() {
-    imageImporter.pause();
+    $scope.paused = true;
+    iImporter.pause();
   };
 
   $scope.resume = function() {
-    imageImporter.resume();
+    $scope.paused = false;
+    iImporter.resume();
   };
 
   $scope.stop = function() {
-    imageImporter.stop();
+    $scope.started = false;
+		$scope.paused = false;
+    iImporter.stop();
   };
 
   function progress(status) {
     if (status.name === "complete") {
-      $scope.ratio = 100
+      $scope.ratio = 100;
+			$scope.started = false;
+			$scope.paused = false;
     } else {
       $scope.ratio = Math.floor(100*status.current/status.total);
     }

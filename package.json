@@ -26,11 +26,11 @@
     "cordova-plugin-statusbar",
     "ionic-plugin-keyboard",
     "cordova-plugin-file",
+    "cordova-plugin-file-transfer",
     {
       "locator": "https://gitlab.com/iwelab/cordova-plugin-photo-engine.git",
       "id": "cordova-plugin-photo-engine"
-    },
-    "cordova-plugin-file-transfer"
+    }
   ],
   "cordovaPlatforms": [
     "ios"
