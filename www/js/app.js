@@ -64,7 +64,7 @@ angular.module('starter', ['ionic', 'ngCordova'])
     uploadData: uploadData
   };
 }])
-.controller('mainCtrl', function($scope, $ionicPlatform, $cordovaFile, photoEngineService, imageImporter, remoteStorageService, dummyImageImporter) {
+.controller('mainCtrl', function($scope, $ionicPlatform, $cordovaFile, $timeout, photoEngineService, imageImporter, remoteStorageService, dummyImageImporter) {
   var iImporter = null;
   if (ionic.Platform.isIOS() || ionic.Platform.isAndroid()) {
     iImporter = imageImporter;
@@ -105,7 +105,7 @@ angular.module('starter', ['ionic', 'ngCordova'])
   });
 
   $scope.load = function() {
-    remoteStorageService.downloadData('test')
+    remoteStorageService.downloadData('uploaded_imgs')
     .then(function(result){
       console.dir(JSON.parse(result.data.value));
     });
@@ -147,13 +147,16 @@ angular.module('starter', ['ionic', 'ngCordova'])
   };
 
   function progress(status) {
-    if (status.name === "complete") {
-      $scope.ratio = 100;
-			$scope.started = false;
-			$scope.paused = false;
-    } else {
-      $scope.ratio = Math.floor(100*status.current/status.total);
-    }
-    $scope.status = status;
+    $timeout(function() {
+      if (status.name === 'completed') {
+        console.log('import completed in app.js');
+        $scope.ratio = 100;
+  			$scope.started = false;
+  			$scope.paused = false;
+      } else {
+        $scope.ratio = Math.floor(100*status.current/status.total);
+      }
+      $scope.status = status;
+    }, 1);
   };
 });

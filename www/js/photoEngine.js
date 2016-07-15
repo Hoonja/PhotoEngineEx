@@ -6,12 +6,13 @@ angular.module('starter')
     var deferred = $q.defer();
 
     PhotoEngine.photoList(function(results) {
-      var data = JSON.parse(results.data);
+      console.dir(results);
+      // var parsed = JSON.parse(results);
 
-      if (results.error === '0') {
-        deferred.resolve(data);
+      if (results.error === 0) {
+        deferred.resolve(results.data);
       } else {
-        deferred.reject(data);
+        deferred.reject(results.error);
       }
     });
 
@@ -21,9 +22,11 @@ angular.module('starter')
   function getPhoto(index) {
     var deferred = $q.defer();
 
+    console.log('in getPhoto[' + index + ']');
     PhotoEngine.storePhoto(index, function(results) {
+      // console.log('storePhoto..');
       // console.dir(results);
-      if (results.error === '0') {
+      if (results.error === 0) {
         // $cordovaFile.checkFile(cordova.file.documentsDirectory, index + '')
         // .then(function(success) {
         //   console.log(index + 'file is exist');

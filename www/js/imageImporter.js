@@ -14,8 +14,42 @@ angular.module('starter')
   };
   var timer = null;
   var progress = null;
+  var useCellNetwork = false;
 
-  function updateProgress() {
+  // function canUploadImage() {
+  //   var conType = $cordovaNetwork.getNetwork();
+  //   var isOnline = $cordovaNetwork.isOnline();
+  //
+  //   if (isOnline === false) {
+  //     console.warn('Cannot upload images cause of Offline');
+  //     return false;
+  //   } else {
+  //     if (useCellNetwork) {
+  //       console.info('Can upload image cause of useCellNetwork');
+  //       return true;
+  //     } else {
+  //       if (conType === 'wifi') {
+  //         console.info('Can upload image cause of useCellNetwork = false but wifi');
+  //         return true;
+  //       } else {
+  //         console.warn('Cannot upload image cause of useCellNetwork = false and wifi = false');
+  //         return false;
+  //       }
+  //     }
+  //   }
+  //   // Connection.TYPE_UNKNOWN = "unknown";
+  //   // Connection.TYPE_ETHERNET = "ethernet";
+  //   // Connection.TYPE_ETHERNET_SHORT = "eth";
+  //   // Connection.TYPE_WIFI = "wifi";
+  //   // Connection.TYPE_2G = "2g";
+  //   // Connection.TYPE_3G = "3g";
+  //   // Connection.TYPE_4G = "4g";
+  //   // Connection.TYPE_NONE = "none";
+  // }
+
+  function updateProgress(stateName) {
+    status.name = stateName;
+
     if (progress) {
       progress(status);
     }
@@ -26,10 +60,14 @@ angular.module('starter')
     uploadedImages = [];
     remoteStorageService.downloadData('uploaded_imgs')
     .then(function(result) {
+      try {
       uploadedImages = JSON.parse(result.data.value) || [];
-      console.dir(uploadedImages);
-      status.name = 'init';
+        // console.dir(uploadedImages);
       deferred.resolve();
+      } catch (e) {
+        console.error(e.message);
+        deferred.reject(e);
+      }
     }, function(err) {
       deferred.reject(err);
     });
@@ -39,9 +77,11 @@ angular.module('starter')
   function saveHistory(url) {
     uploadedImages.push(url);
     remoteStorageService.uploadData('uploaded_imgs', uploadedImages);
+    console.dir(uploadedImages);
   }
 
   function findImage(key) {
+    console.log('findImage : ' + key + ', uploadedIamges.length: ' + uploadedImages.length);
     for (var i = 0; i < uploadedImages.length; i++) {
       if (uploadedImages[i] === key) {
         return true;
@@ -50,25 +90,64 @@ angular.module('starter')
     return false;
   }
 
+  //  Android와 iOS에서 반환하는 타임스탬프의 형식이 서로 달라 부득이하게 분기해서 처리함
+  //  원하는 최종 형식은 Android가 반환하는 형식이긴 함
+  //  호성이가 수정해 줄때까지는 이 로직을 유지할 예정
+  function convertToTimeString(timestamp) {
+    var result = '';
+
+    if (ionic.Platform.isIOS()) {
+      var dd = new Date(timestamp * 1000);  // 자바스크립트는 초단위가 아닌 밀리초단위로 입력 받는다
+      var month = (dd.getUTCMonth() + 1) + ':';
+      var day = dd.getUTCDate() + ' ';
+      var hour = dd.getUTCHours() + ':';
+      var min = dd.getUTCMinutes() + ':';
+      var sec = dd.getUTCSeconds() + '';
+
+      result += dd.getUTCFullYear() + ':';
+      result += ((month.length === 2) ? '0' : '') + month;
+      result += ((day.length === 2) ? '0' : '') + day;
+      result += ((hour.length === 2) ? '0' : '') + hour;
+      result += ((min.length === 2) ? '0' : '') + min;
+      result += ((sec.length === 1) ? '0' : '') + sec;
+    } else if (ionic.Platform.isAndroid()) {
+      result = timestamp;
+    } else {
+      result = '';
+    }
+
+    return result;  //  2015:04:22 11:54:19와 같은 형식
+  }
+
   function uploadImage() {
     console.log('uploadImage..(status:' + status.name + ')');
     if (status.name !== 'ready') {
       return;
     } else {
-      status.name = 'uploading';
+      updateProgress('uploading');
     }
 
+    // console.log('uploadImage : findImage');
+    // console.log('status..');
+    // console.dir(status);
+    // console.log('imagesToUpload..');
+    // console.dir(imagesToUpload);
+    // console.log('imagesToUpload.url : ' + imagesToUpload[status.current].url);
     while(findImage(imagesToUpload[status.current].url)) {
       status.current++;
+      console.log('In find Image :', status.name, status.current, status.total);
       if (status.current === imagesToUpload.length) {
+        console.log('complete???');
         complete();
         return;
       }
     }
 
+    console.log('uploadImage : getPhoto');
+    console.log('imagesToUpload[status.current].id = ' + imagesToUpload[status.current].id);
     photoEngineService.getPhoto(imagesToUpload[status.current].id)
     .then(function(fileURI) {
-      // console.log('image path : ' + fileURI);
+      console.log('image path : ' + fileURI);
       var options = {
         fileKey: 'file',
         httpMethod: 'POST',
@@ -79,11 +158,18 @@ angular.module('starter')
       };
       $cordovaFileTransfer.upload(getServerURL() + '/rfs/', fileURI, options)
       .then(function(result) {
-        var response = JSON.parse(result.response);
-        // console.dir(response);
-        // console.log('lon : ' + imagesToUpload[status.current].longitude);
-        // console.log('lat : ' + imagesToUpload[status.current].latitude);
-        console.log('local_datetime : ' + imagesToUpload[status.current].timestamp);
+        var response;
+        try {
+          response = JSON.parse(result.response);
+          // console.dir(response);
+          // console.log('lon : ' + imagesToUpload[status.current].longitude);
+          // console.log('lat : ' + imagesToUpload[status.current].latitude);
+          // console.log('local_datetime : ' + imagesToUpload[status.current].timestamp);
+        } catch (e) {
+          console.error(e.message);
+          return;
+        }
+
         $http({
           method: 'POST',
           url: getServerURL() + '/imgs/',
@@ -91,7 +177,7 @@ angular.module('starter')
             content: response.url,
             lon: imagesToUpload[status.current].longitude,
             lat: imagesToUpload[status.current].latitude,
-            local_datetime: '2015:04:22 11:54:19'
+            local_datetime: convertToTimeString(imagesToUpload[status.current].timestamp)
           }),
           params: {
             auth_user_token: 'gAAAAABXObzjJ2VYfgLeZZr_uAyLpsht7GAFvHLs3dTM5zS2jR7TvaSJB5MierVs7O1ETeWsV2871MHKFAoT_WEnqMmMcsd4GfMTNWG5FsFWFwf8ngdzcNy_vLirUdAtq5S4Je7F5Hvx',
@@ -100,52 +186,66 @@ angular.module('starter')
         })
         .then(function(result) {
           // console.dir(result);
-          photoEngineService.deletePhoto(imagesToUpload[status.current].id);
+          // photoEngineService.deletePhoto(imagesToUpload[status.current].id); 임시
           saveHistory(imagesToUpload[status.current].url);
-          status.current++;
-          updateProgress();
         }, function(err) {
           console.error('In posting to imgs :' + JSON.stringify(err));
           // console.dir(err);
         })
         .finally(function() {
-          status.name = 'ready';
+          status.current++;
+          updateProgress('ready');
           if (status.current === imagesToUpload.length) {
             complete();
           }
         });
       }, function(err) {
         console.error('In cordovaFileTransfer: ' + err);
+        status.current++;
+        updateProgress('ready');
       });
-      //  3. delete tempfile
-
     }, function(err) {
-      console.error('In uploadImage : ' + err);
+      console.error('In getPhoto : ' + err);
+      status.current++;
+      updateProgress('ready');
     });
   }
 
-  function start(prograssCallback) {
+  function start(prograssCallback, useCell) {
     progress = prograssCallback || null;
+    useCellNetwork = useCell || false;
+
     status.total = 0;
     status.current = 0;
+    uploadedImages = [];
     loadHistory()
     .then(function() {
       console.log('imageImporter start');
       photoEngineService.getPhotoList()
       .then(function(list) {
-        console.log('In getPhotoList.');
-        console.dir(list);
+        // console.log('In getPhotoList..');
+        // console.dir(list);
         imagesToUpload = list;
         status.total = imagesToUpload.length;
-        // console.dir(imagesToUpload);
-        status.name = 'ready';
-        updateProgress();
-        timer = setInterval(uploadImage, 1000);
-        console.log('timerID : ' + JSON.stringify(timer));
+        if (imagesToUpload.length === 0) {
+          complete();
+        } else {
+          // console.dir(imagesToUpload);
+          updateProgress('ready');
+          timer = setInterval(uploadImage, 100);
+        }
       }, function(err) {
         console.error(err);
       });
     });
+
+    // photoEngineService.getPhotoList()
+    // .then(function(list) {
+    //   console.log('In getPhotoList.');
+    //   console.dir(list);
+    // }, function(err) {
+    //   console.error(err);
+    // });
   }
 
   function pause() {
@@ -153,8 +253,7 @@ angular.module('starter')
     if (timer !== null) {
       clearInterval(timer);
       timer = null;
-      status.name = 'paused';
-      updateProgress();
+      updateProgress('paused');
     }
   }
 
@@ -163,9 +262,8 @@ angular.module('starter')
     if (timer !== null) {
       return;
     }
-    status.name = 'ready';
-    updateProgress();
-    timer = setInterval(uploadImage, 1000);
+    updateProgress('ready');
+    timer = setInterval(uploadImage, 100);
   }
 
   function stop() {
@@ -173,12 +271,8 @@ angular.module('starter')
     if (timer !== null) {
       clearInterval(timer);
       timer = null;
-      status.name = 'stopped';
-      status.total = 0;
-      status.current = 0;
-      uploadedImages = [];
-      updateProgress();
     }
+    updateProgress('stopped');
   }
 
   function complete() {
@@ -186,12 +280,8 @@ angular.module('starter')
     if (timer !== null) {
       clearInterval(timer);
       timer = null;
-      updateProgress(); //  !! 이 위치가 중요(stop과의 차이점을 비교하라)
-      status.name = 'completed';
-      status.total = 0;
-      status.current = 0;
-      uploadedImages = [];
     }
+    updateProgress('completed'); //  !! 이 위치가 중요(stop과의 차이점을 비교하라)
   }
 
   function getStatus() {
