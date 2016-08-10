@@ -161,6 +161,7 @@ angular.module('starter')
         var response;
         try {
           response = JSON.parse(result.response);
+          console.log('upload result(/rfs/)', result.response);
           // console.dir(response);
           // console.log('lon : ' + imagesToUpload[status.current].longitude);
           // console.log('lat : ' + imagesToUpload[status.current].latitude);
@@ -185,6 +186,7 @@ angular.module('starter')
           }
         })
         .then(function(result) {
+          console.log('upload result(/imgs/)', result);
           // console.dir(result);
           // photoEngineService.deletePhoto(imagesToUpload[status.current].id); 임시
           saveHistory(imagesToUpload[status.current].url);

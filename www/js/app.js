@@ -29,7 +29,7 @@ angular.module('starter', ['ionic', 'ngCordova'])
 .factory('RESTServer', [function() {
   return {
     getURL: function() {
-      return 'http://maukitest.cloudapp.net';
+      return 'http://neapk-test01.japaneast.cloudapp.azure.com';
     }
   }
 }])
@@ -64,7 +64,7 @@ angular.module('starter', ['ionic', 'ngCordova'])
     uploadData: uploadData
   };
 }])
-.controller('mainCtrl', function($scope, $ionicPlatform, $cordovaFile, $timeout, photoEngineService, imageImporter, remoteStorageService, dummyImageImporter) {
+.controller('mainCtrl', function($scope, $ionicPlatform, $cordovaFile, $timeout, photoEngineService, imageImporter, remoteStorageService, dummyImageImporter, $q) {
   var iImporter = null;
   if (ionic.Platform.isIOS() || ionic.Platform.isAndroid()) {
     iImporter = imageImporter;
@@ -159,4 +159,30 @@ angular.module('starter', ['ionic', 'ngCordova'])
       $scope.status = status;
     }, 1);
   };
+
+  $scope.testPromise = function() {
+    console.log('testPromise');
+    $q.all([
+      samplePromise(1),
+      samplePromise(2),
+      samplePromise(3),
+      samplePromise(4),
+      samplePromise(5),
+    ])
+    .then(function(vals){
+      console.log(vals);
+    });
+  }
+
+  function samplePromise(input) {
+    var deferred = $q.defer();
+    var periode = Math.floor(Math.random()*10000)
+    console.log('periode:' + periode);
+
+    $timeout(function() {
+      deferred.resolve(input);
+    }, periode);
+
+    return deferred.promise;
+  }
 });
